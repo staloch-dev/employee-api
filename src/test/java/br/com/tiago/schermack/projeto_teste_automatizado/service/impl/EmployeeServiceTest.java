@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -19,6 +20,7 @@ import br.com.tiago.schermack.projeto_teste_automatizado.dto.EmployeeRequestDTO;
 import br.com.tiago.schermack.projeto_teste_automatizado.dto.EmployeeResponseDTO;
 import br.com.tiago.schermack.projeto_teste_automatizado.entity.Employee;
 import br.com.tiago.schermack.projeto_teste_automatizado.repository.EmployeeRepository;
+import jakarta.persistence.EntityNotFoundException;
 
 @SpringBootTest
 class EmployeeServiceTest {
@@ -73,6 +75,21 @@ class EmployeeServiceTest {
         assertEquals("jaison.novo@email.com", responseDTO.email());
 
         verify(employeeRepository, times(1)).findById(existingEmployee.getId());
+    }
+
+    @Test
+    @DisplayName("Deve lançar EntityNotFoundException ao tentar atualizar um funcionário inexistente")
+    public void shouldThrowEntityNotFoundExceptionWhenUpdatingNonExistentEmployee() {
+
+        // Arrange
+        EmployeeRequestDTO requestDTO = new EmployeeRequestDTO("Jaison Atualizado", "jaison.novo@email.com");
+
+        when(employeeRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        // Assert
+        assertThrows(EntityNotFoundException.class,
+                () -> employeeService.update(1L, requestDTO));
     }
 
 }
