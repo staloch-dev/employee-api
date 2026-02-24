@@ -1,33 +1,23 @@
 package br.com.tiago.schermack.projeto_teste_automatizado.service.impl;
 
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.tiago.schermack.projeto_teste_automatizado.dto.EmployeeRequestDTO;
 import br.com.tiago.schermack.projeto_teste_automatizado.dto.EmployeeResponseDTO;
-import br.com.tiago.schermack.projeto_teste_automatizado.entity.Employee;
-import br.com.tiago.schermack.projeto_teste_automatizado.repository.EmployeeRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 @SpringBootTest
-class EmployeeServiceTest {
+@Transactional
+public class EmployeeIntegrationServiceTest {
 
-    @InjectMocks
+    @Autowired
     private EmployeeService employeeService;
-
-    @Mock
-    private EmployeeRepository employeeRepository;
 
     @Test
     @DisplayName("Deve criar um funcionário e retornar o EmployeeResponseDTO com sucesso")
@@ -35,11 +25,6 @@ class EmployeeServiceTest {
 
         // Arrange
         EmployeeRequestDTO requestDTO = new EmployeeRequestDTO("Jaison", "jaison@email.com");
-        Employee employeeToSave = new Employee(requestDTO.firstName(), requestDTO.email());
-        employeeToSave.setId(1L);
-
-        when(employeeRepository.save(any(Employee.class)))
-                .thenReturn(employeeToSave);
 
         // Act
         EmployeeResponseDTO responseDTO = employeeService.create(requestDTO);
@@ -48,8 +33,6 @@ class EmployeeServiceTest {
         assertEquals(1L, responseDTO.id());
         assertEquals("Jaison", responseDTO.firstName());
         assertEquals("jaison@email.com", responseDTO.email());
-
-        verify(employeeRepository, times(1)).save(any(Employee.class));
     }
 
     @Test
@@ -57,22 +40,16 @@ class EmployeeServiceTest {
     public void shouldUpdateEmployeeAndReturnResponseDTOSuccessfully() {
 
         // Arrange
-        EmployeeRequestDTO requestDTO = new EmployeeRequestDTO("Jaison Atualizado", "jaison.novo@email.com");
-        Employee existingEmployee = new Employee("Jaison", "jaison@email.com");
-        existingEmployee.setId(1L);
-
-        when(employeeRepository.findById(existingEmployee.getId()))
-                .thenReturn(Optional.of(existingEmployee));
+        EmployeeRequestDTO requestDTO = new EmployeeRequestDTO("Jaison Atualizado", "jaison_atualizado@email.com");
+        EmployeeResponseDTO createdEmployee = employeeService.create(new EmployeeRequestDTO("Jaison", "jaison@email.com"));
 
         // Act
-        EmployeeResponseDTO responseDTO = employeeService.update(existingEmployee.getId(), requestDTO);
+        EmployeeResponseDTO responseDTO = employeeService.update(createdEmployee.id(), requestDTO);
 
         // Assert
-        assertEquals(existingEmployee.getId(), responseDTO.id());
+        assertEquals(createdEmployee.id(), responseDTO.id());
         assertEquals("Jaison Atualizado", responseDTO.firstName());
-        assertEquals("jaison.novo@email.com", responseDTO.email());
-
-        verify(employeeRepository, times(1)).findById(existingEmployee.getId());
+        assertEquals("jaison_atualizado@email.com", responseDTO.email());
     }
 
     @Test
@@ -80,14 +57,35 @@ class EmployeeServiceTest {
     public void shouldThrowEntityNotFoundExceptionWhenUpdatingNonExistentEmployee() {
 
         // Arrange
-        EmployeeRequestDTO requestDTO = new EmployeeRequestDTO("Jaison Atualizado", "jaison.novo@email.com");
+        EmployeeRequestDTO requestDTO = new EmployeeRequestDTO("Jaison Atualizado", "jaison_atualizado@gmail.com");
 
-        when(employeeRepository.findById(1L))
-                .thenReturn(Optional.empty());
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class,
+                () -> employeeService.update(1L, requestDTO));
+    }
+
+    @Test
+    @DisplayName("Deve deletar um funcionário com sucesso")
+    public void shouldDeleteEmployeeSuccessfully() {
+
+        // Arrange
+        EmployeeResponseDTO createdEmployee = employeeService.create(new EmployeeRequestDTO("Jaison", "jaison@email.com"));
+
+        // Act
+        employeeService.delete(createdEmployee.id());
 
         // Assert
         assertThrows(EntityNotFoundException.class,
-                () -> employeeService.update(1L, requestDTO));
+                () -> employeeService.findById(createdEmployee.id()));
+    }
+
+    @Test
+    @DisplayName("Deve lançar EntityNotFoundException ao tentar deletar um funcionário inexistente")
+    public void shouldThrowEntityNotFoundExceptionWhenDeletingNonExistentEmployee() {
+
+        // Act & Assert
+        assertThrows(EntityNotFoundException.class,
+                () -> employeeService.delete(1L));
     }
 
 }
